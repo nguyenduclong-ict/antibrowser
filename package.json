@@ -1,15 +1,16 @@
 {
-  "name": "tauri-sidecar-template",
+  "name": "antibrowsers",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "tauri dev",
-    "vite": "vite",
+    "vite": "concurrently \"vite\" \"npm run sidecar:watch\"",
     "build:frontend": "tsc && vite build",
     "preview": "tauri preview",
     "tauri": "tauri",
     "sidecar:build": "npm --prefix sidecar/nodejs run build",
+    "sidecar:watch": "npm --prefix sidecar/nodejs run watch",
     "build:exe": "npm run sidecar:build && npm run build:frontend && tauri build"
   },
   "dependencies": {
@@ -26,6 +27,7 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "concurrently": "^9.2.1",
     "typescript": "~5.8.3",
     "vite": "^7.0.4"
   }

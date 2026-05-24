@@ -56,6 +56,16 @@ async fn boot_sequence(app_handle: AppHandle, state: Arc<Mutex<AppState>>) {
         eprintln!("{}", err_msg);
         let _ = app_handle.emit("boot:status", err_msg);
     }
+
+    // 4. Ở chế độ DEV, khởi động watcher theo dõi file server.cjs để tự động restart sidecar
+    #[cfg(dev)]
+    {
+        let app_clone = app_handle.clone();
+        let state_clone = state.clone();
+        tauri::async_runtime::spawn(async move {
+            crate::sidecar::watch_server_js_changes(app_clone, state_clone).await;
+        });
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

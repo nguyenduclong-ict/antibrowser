@@ -9,6 +9,7 @@ use tauri::{AppHandle, Emitter, Manager};
 const NODE_VERSION: &str = "22.11.0";
 
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 struct ProgressPayload {
     stage: String,
     percent: f64,
@@ -90,6 +91,7 @@ pub async fn setup_node_runtime(app_handle: &AppHandle) -> Result<PathBuf, Box<d
     }
 }
 
+#[allow(dead_code)]
 fn get_download_url() -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     #[cfg(target_os = "windows")]
     {
@@ -120,6 +122,7 @@ fn get_download_url() -> Result<String, Box<dyn std::error::Error + Send + Sync>
     }
 }
 
+#[allow(dead_code)]
 async fn download_file_with_progress(
     app_handle: &AppHandle,
     url: &str,
@@ -148,6 +151,7 @@ async fn download_file_with_progress(
     Ok(())
 }
 
+#[allow(dead_code)]
 fn extract_archive(
     app_handle: &AppHandle,
     archive_path: &Path,

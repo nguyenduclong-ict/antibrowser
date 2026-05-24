@@ -18,3 +18,60 @@ body,
     Arial,
     sans-serif;
 }
+
+/* Custom Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #090a0f; /* Match theme.colors.bg */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1f222e; /* Match theme.colors.border */
+  border-radius: 99px;
+  border: 1px solid #090a0f;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4f46e5; /* Match theme.colors.accent */
+}
+
+/* Firefox scrollbar support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1f222e #090a0f;
+}
+
+/* Hover effect on table rows */
+tr {
+  transition: background-color 0.15s ease !important;
+}
+tr:hover {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Sticky Action Column Styles */
+.sticky-action-header {
+  position: sticky !important;
+  right: 0;
+  background-color: #12131a !important; /* theme.colors.panel */
+  z-index: 3;
+  border-left: 1px solid #1f222e;
+}
+
+.sticky-action-cell {
+  position: sticky !important;
+  right: 0;
+  background-color: #12131a !important; /* theme.colors.panel */
+  z-index: 2;
+  border-left: 1px solid #1f222e;
+  box-shadow: -4px 0 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Ensure background color on hover is also applied to sticky cell */
+tr:hover .sticky-action-cell {
+  background-color: #1a1c27 !important; /* Slight highlight for sticky cell on row hover */
+}

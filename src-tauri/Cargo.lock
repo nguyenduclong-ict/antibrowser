@@ -53,6 +53,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "antibrowsers"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "flate2",
+ "futures-util",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tar",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-shell",
+ "tokio",
+ "zip",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3872,24 +3890,6 @@ dependencies = [
  "webview2-com",
  "windows",
  "wry",
-]
-
-[[package]]
-name = "tauri-sidecar-template"
-version = "0.1.0"
-dependencies = [
- "axum",
- "flate2",
- "futures-util",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "tar",
- "tauri",
- "tauri-build",
- "tauri-plugin-shell",
- "tokio",
- "zip",
 ]
 
 [[package]]

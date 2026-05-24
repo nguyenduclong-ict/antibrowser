@@ -21,4 +21,14 @@ export interface BrowserProfile {
   humanPreset: 'default' | 'careful';
   extensionPaths?: string[];
   status?: 'Stopped' | 'Running' | 'Starting';
+  
+  // Vân tay nâng cao
+  canvasNoise?: boolean;
+  webglNoise?: boolean;
+  audioNoise?: boolean;
+  clientRectsNoise?: boolean;
+  geolocationMode?: 'auto' | 'custom' | 'block';
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number;
 }

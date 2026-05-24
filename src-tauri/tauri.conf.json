@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tauri-sidecar-template",
+  "productName": "antibrowsers",
   "version": "0.1.0",
-  "identifier": "com.admin.tauri-sidecar-template",
+  "identifier": "com.admin.antibrowsers",
   "build": {
     "beforeDevCommand": "npm run vite",
     "devUrl": "http://localhost:1420",
@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "antibrowsers - Antidetect Browser Controller",
-        "width": 1280,
-        "height": 800,
+        "width": 1440,
+        "height": 900,
         "center": true
       }
     ],
@@ -32,8 +32,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [
-      "resources/sidecar/**/*"
-    ]
+    "resources": ["resources/sidecar/**/*"]
   }
 }

@@ -2,7 +2,7 @@ pub mod node_runtime;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandEvent;
 use crate::state::{AppState, SidecarEntry, SidecarStatus};
@@ -114,6 +114,80 @@ pub fn kill_all_sidecars(state: Arc<Mutex<AppState>>) {
             println!("[Tauri Sidecar Manager] Killing sidecar process: {}", name);
             let _ = child.kill();
             entry.status = SidecarStatus::Stopped;
+        }
+    }
+}
+
+pub async fn restart_sidecar_process(
+    app: AppHandle,
+    state: Arc<Mutex<AppState>>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // 1. Kill old process
+    {
+        let mut app_state = state.lock().unwrap();
+        if let Some(entry) = app_state.sidecars.get_mut("nodejs") {
+            if let Some(child) = entry.process.take() {
+                let _ = child.kill();
+            }
+            entry.status = SidecarStatus::Starting;
+            entry.port = None;
+        }
+    }
+    
+    // 2. Lấy node_path và tauri_port từ state
+    let (node_bin, tauri_port) = {
+        let app_state = state.lock().unwrap();
+        let bin = app_state.node_path.clone();
+        (bin, app_state.tauri_port)
+    };
+    
+    let node_bin_path = match node_bin {
+        Some(path) => path,
+        None => {
+            node_runtime::get_node_bin_path(&app)
+        }
+    };
+    
+    // 3. Khởi động lại
+    start_nodejs_sidecar(app, node_bin_path, tauri_port, state).await?;
+    
+    Ok(())
+}
+
+pub async fn watch_server_js_changes(app: AppHandle, state: Arc<Mutex<AppState>>) {
+    use std::time::Duration;
+    use tokio::time::sleep;
+
+    let server_js = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("resources")
+        .join("sidecar")
+        .join("nodejs")
+        .join("server.cjs");
+
+    println!("[Sidecar Watcher] Bắt đầu theo dõi thay đổi của server.cjs tại: {:?}", server_js);
+
+    let mut last_modified = std::fs::metadata(&server_js)
+        .and_then(|m| m.modified())
+        .ok();
+
+    loop {
+        sleep(Duration::from_millis(1000)).await;
+        
+        if let Ok(metadata) = std::fs::metadata(&server_js) {
+            if let Ok(modified) = metadata.modified() {
+                if Some(modified) != last_modified {
+                    last_modified = Some(modified);
+                    println!("[Sidecar Watcher] Phát hiện server.cjs thay đổi! Đang tự động restart sidecar...");
+                    
+                    let app_clone = app.clone();
+                    let state_clone = state.clone();
+                    if let Err(e) = restart_sidecar_process(app_clone, state_clone).await {
+                        eprintln!("[Sidecar Watcher] Tự động restart sidecar thất bại: {}", e);
+                    } else {
+                        println!("[Sidecar Watcher] Tự động restart sidecar thành công!");
+                    }
+                }
+            }
         }
     }
 }

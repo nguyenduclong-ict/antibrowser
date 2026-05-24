@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserProfile, NodeSidecarBridge } from '../lib/bridge/NodeSidecarBridge';
+import { BrowserProfile, NodeSidecarBridge, ProxyEntry, ExtensionEntry } from '../lib/bridge/NodeSidecarBridge';
 import { theme } from '../styles/theme';
 import { 
   X, 
@@ -75,7 +75,23 @@ export function ProfileModal({ isOpen, onClose, onSave, profile, bridge }: Profi
 
   // Trạng thái kiểm tra Proxy
   const [proxyChecking, setProxyChecking] = useState(false);
-  const [proxyCheckResult, setProxyCheckResult] = useState<{ status: 'idle' | 'live' | 'dead'; ip?: string; error?: string }>({ status: 'idle' });
+  const [proxyCheckResult, setProxyCheckResult] = useState<{ status: 'idle' | 'live' | 'dead'; ip?: string; country?: string; error?: string }>({ status: 'idle' });
+
+  // State lưu danh sách Proxy tập trung
+  const [savedProxies, setSavedProxies] = useState<ProxyEntry[]>([]);
+  const [selectedProxyId, setSelectedProxyId] = useState<string>('');
+  const [availableExtensions, setAvailableExtensions] = useState<ExtensionEntry[]>([]);
+  const [selectedExtensionIds, setSelectedExtensionIds] = useState<string[]>([]);
+
+  // States vân tay nâng cao
+  const [canvasNoise, setCanvasNoise] = useState(true);
+  const [webglNoise, setWebglNoise] = useState(true);
+  const [audioNoise, setAudioNoise] = useState(true);
+  const [clientRectsNoise, setClientRectsNoise] = useState(true);
+  const [geolocationMode, setGeolocationMode] = useState<'auto' | 'custom' | 'block'>('auto');
+  const [latitude, setLatitude] = useState(10.762622);
+  const [longitude, setLongitude] = useState(106.660172);
+  const [accuracy, setAccuracy] = useState(10);
 
   // Load thông tin profile khi mở modal chỉnh sửa
   useEffect(() => {
@@ -98,6 +114,15 @@ export function ProfileModal({ isOpen, onClose, onSave, profile, bridge }: Profi
       setStorageQuota(profile.storageQuota);
       setHumanize(profile.humanize);
       setHumanPreset(profile.humanPreset);
+      setSelectedExtensionIds(profile.extensionPaths || []);
+      setCanvasNoise(profile.canvasNoise ?? true);
+      setWebglNoise(profile.webglNoise ?? true);
+      setAudioNoise(profile.audioNoise ?? true);
+      setClientRectsNoise(profile.clientRectsNoise ?? true);
+      setGeolocationMode(profile.geolocationMode || 'auto');
+      setLatitude(profile.latitude ?? 10.762622);
+      setLongitude(profile.longitude ?? 106.660172);
+      setAccuracy(profile.accuracy ?? 10);
     } else {
       // Reset về mặc định khi tạo mới
       setName('');
@@ -118,9 +143,71 @@ export function ProfileModal({ isOpen, onClose, onSave, profile, bridge }: Profi
       setStorageQuota(5000);
       setHumanize(true);
       setHumanPreset('default');
+      setSelectedExtensionIds([]);
+      setCanvasNoise(true);
+      setWebglNoise(true);
+      setAudioNoise(true);
+      setClientRectsNoise(true);
+      setGeolocationMode('auto');
+      setLatitude(10.762622);
+      setLongitude(106.660172);
+      setAccuracy(10);
     }
     setProxyCheckResult({ status: 'idle' });
+    setSelectedProxyId('');
   }, [profile, isOpen]);
+
+  // Load danh sách Proxy đã lưu từ database
+  useEffect(() => {
+    if (isOpen) {
+      bridge.getProxies().then((list) => {
+        setSavedProxies(list);
+      }).catch((err) => {
+        console.error('Lỗi tải danh sách proxy trong modal:', err);
+      });
+
+      // Tải danh sách Extension
+      bridge.getExtensions().then((list) => {
+        setAvailableExtensions(list);
+      }).catch((err) => {
+        console.error('Lỗi tải danh sách extensions trong modal:', err);
+      });
+    }
+  }, [isOpen]);
+
+  const handleSelectSavedProxy = (id: string) => {
+    setSelectedProxyId(id);
+    if (id === '') return;
+    const found = savedProxies.find((p) => p.id === id);
+    if (found) {
+      setProxyType(found.proxyType);
+      setProxyHost(found.proxyHost);
+      setProxyPort(found.proxyPort);
+      setProxyUsername(found.proxyUsername || '');
+      setProxyPassword(found.proxyPassword || '');
+    }
+  };
+
+  const handleProxyHostChange = (value: string) => {
+    if (value.includes(':')) {
+      const parts = value.trim().split(':');
+      if (parts.length >= 2) {
+        setProxyHost(parts[0] || '');
+        const port = parseInt(parts[1] || '', 10);
+        if (!isNaN(port)) {
+          setProxyPort(port);
+        }
+        if (parts[2] !== undefined) {
+          setProxyUsername(parts[2]);
+        }
+        if (parts[3] !== undefined) {
+          setProxyPassword(parts[3]);
+        }
+        return;
+      }
+    }
+    setProxyHost(value);
+  };
 
   if (!isOpen) return null;
 
@@ -161,7 +248,7 @@ export function ProfileModal({ isOpen, onClose, onSave, profile, bridge }: Profi
         proxyPassword: proxyPassword || undefined,
       });
       if (res.status === 'live') {
-        setProxyCheckResult({ status: 'live', ip: res.ip });
+        setProxyCheckResult({ status: 'live', ip: res.ip, country: res.country });
       } else {
         setProxyCheckResult({ status: 'dead', error: res.error || 'Connection timeout' });
       }
@@ -196,6 +283,15 @@ export function ProfileModal({ isOpen, onClose, onSave, profile, bridge }: Profi
       storageQuota,
       humanize,
       humanPreset,
+      extensionPaths: selectedExtensionIds,
+      canvasNoise,
+      webglNoise,
+      audioNoise,
+      clientRectsNoise,
+      geolocationMode,
+      latitude: geolocationMode === 'custom' ? latitude : undefined,
+      longitude: geolocationMode === 'custom' ? longitude : undefined,
+      accuracy: geolocationMode === 'custom' ? accuracy : undefined,
     });
     onClose();
   };
@@ -316,12 +412,58 @@ export function ProfileModal({ isOpen, onClose, onSave, profile, bridge }: Profi
                   />
                 </div>
               </div>
+
+              {/* Nạp extensions cho Profile */}
+              {availableExtensions.length > 0 && (
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Nạp Tiện Ích Mở Rộng (Chrome Extensions)</label>
+                  <div style={styles.extensionsList}>
+                    {availableExtensions.map((ext) => (
+                      <label key={ext.id} style={styles.extensionCheckboxLabel}>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedExtensionIds.includes(ext.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedExtensionIds((prev) => [...prev, ext.id]);
+                            } else {
+                              setSelectedExtensionIds((prev) => prev.filter((id) => id !== ext.id));
+                            }
+                          }}
+                          style={styles.checkboxInput}
+                        />
+                        <span style={styles.extensionCheckboxText}>
+                          <strong>{ext.name}</strong> <span style={{ color: theme.colors.textSecondary, fontSize: '11px' }}>v{ext.version}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* TAB 2: PROXY */}
           {activeTab === 'proxy' && (
             <div style={styles.tabPanel}>
+              {savedProxies.length > 0 && (
+                <div style={styles.inputGroup}>
+                  <label style={styles.label}>Chọn Nhanh Từ Proxy Đã Lưu</label>
+                  <select 
+                    value={selectedProxyId} 
+                    onChange={(e) => handleSelectSavedProxy(e.target.value)} 
+                    style={styles.select}
+                  >
+                    <option value="">-- Chọn Proxy đã lưu (Tùy chọn) --</option>
+                    {savedProxies.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} {p.country ? `[${p.country.toUpperCase()}] ` : ''}({p.proxyType.toUpperCase()}://{p.proxyHost}:{p.proxyPort})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div style={styles.inputGroup}>
                 <label style={styles.label}>Giao Thức Proxy</label>
                 <select 
@@ -343,7 +485,7 @@ export function ProfileModal({ isOpen, onClose, onSave, profile, bridge }: Profi
                       <input 
                         type="text" 
                         value={proxyHost} 
-                        onChange={(e) => setProxyHost(e.target.value)} 
+                        onChange={(e) => handleProxyHostChange(e.target.value)} 
                         style={styles.input} 
                         required
                         placeholder="Ví dụ: 192.168.1.10"
@@ -399,9 +541,10 @@ export function ProfileModal({ isOpen, onClose, onSave, profile, bridge }: Profi
                     {proxyCheckResult.status === 'live' && (
                       <div style={styles.checkLive}>
                         <CheckCircle2 size={14} style={{ marginRight: '6px', display: 'inline', verticalAlign: 'middle' }} />
-                        Kết nối Proxy tốt! Quốc gia IP đầu ra: <strong>{proxyCheckResult.ip}</strong>
+                        Kết nối Proxy tốt! Quốc gia: <strong>{proxyCheckResult.country || 'Không rõ'}</strong> | IP: <strong>{proxyCheckResult.ip}</strong>
                       </div>
                     )}
+
                     {proxyCheckResult.status === 'dead' && (
                       <div style={styles.checkDead}>
                         <AlertTriangle size={14} style={{ marginRight: '6px', display: 'inline', verticalAlign: 'middle' }} />
@@ -416,7 +559,7 @@ export function ProfileModal({ isOpen, onClose, onSave, profile, bridge }: Profi
 
           {/* TAB 3: ADVANCED FINGERPRINT */}
           {activeTab === 'fingerprint' && (
-            <div style={{ ...styles.tabPanel, maxHeight: '380px', overflowY: 'auto' }}>
+            <div style={{ ...styles.tabPanel, maxHeight: '380px', overflowY: 'auto', paddingRight: '12px' }}>
               <div style={styles.seedGroup}>
                 <div style={{ flex: 1 }}>
                   <label style={styles.label}>Hạt Giống Vân Tay (Master Seed)</label>
@@ -519,6 +662,56 @@ export function ProfileModal({ isOpen, onClose, onSave, profile, bridge }: Profi
                   />
                 </div>
               </div>
+
+              {/* Giả lập nhiễu vân tay nâng cao */}
+              <div style={styles.inputGroup}>
+                <label style={styles.label}>Nhiễu Vân Tay Cấp Thấp (Hardware Spoofing)</label>
+                <div style={styles.fingerprintNoisesGrid}>
+                  <label style={styles.checkboxLabel}>
+                    <input type="checkbox" checked={canvasNoise} onChange={(e) => setCanvasNoise(e.target.checked)} style={styles.checkboxInput} />
+                    Canvas Noise
+                  </label>
+                  <label style={styles.checkboxLabel}>
+                    <input type="checkbox" checked={webglNoise} onChange={(e) => setWebglNoise(e.target.checked)} style={styles.checkboxInput} />
+                    WebGL Noise
+                  </label>
+                  <label style={styles.checkboxLabel}>
+                    <input type="checkbox" checked={audioNoise} onChange={(e) => setAudioNoise(e.target.checked)} style={styles.checkboxInput} />
+                    Audio Noise
+                  </label>
+                  <label style={styles.checkboxLabel}>
+                    <input type="checkbox" checked={clientRectsNoise} onChange={(e) => setClientRectsNoise(e.target.checked)} style={styles.checkboxInput} />
+                    ClientRects Noise
+                  </label>
+                </div>
+              </div>
+
+              {/* Cấu hình vị trí địa lý (Geolocation) */}
+              <div style={styles.inputGroup}>
+                <label style={styles.label}>Vị Trí Địa Lý (Geolocation)</label>
+                <select value={geolocationMode} onChange={(e) => setGeolocationMode(e.target.value as any)} style={styles.select}>
+                  <option value="auto">Tự động điều chỉnh theo IP Proxy (GeoIP)</option>
+                  <option value="custom">Nhập tọa độ địa lý thủ công (Latitude/Longitude)</option>
+                  <option value="block">Chặn hoàn toàn quyền truy cập vị trí</option>
+                </select>
+              </div>
+
+              {geolocationMode === 'custom' && (
+                <div style={styles.grid3}>
+                  <div style={styles.inputGroup}>
+                    <label style={styles.label}>Kinh độ (Latitude)</label>
+                    <input type="number" step="any" value={latitude} onChange={(e) => setLatitude(Number(e.target.value))} style={styles.input} placeholder="Ví dụ: 10.7626" />
+                  </div>
+                  <div style={styles.inputGroup}>
+                    <label style={styles.label}>Vĩ độ (Longitude)</label>
+                    <input type="number" step="any" value={longitude} onChange={(e) => setLongitude(Number(e.target.value))} style={styles.input} placeholder="Ví dụ: 106.6601" />
+                  </div>
+                  <div style={styles.inputGroup}>
+                    <label style={styles.label}>Sai số (Accuracy m)</label>
+                    <input type="number" value={accuracy} onChange={(e) => setAccuracy(Number(e.target.value))} style={styles.input} placeholder="Ví dụ: 10" />
+                  </div>
+                </div>
+              )}
 
               <div style={styles.checkboxGroup}>
                 <label style={styles.checkboxLabel}>
@@ -726,6 +919,20 @@ const styles: { [key: string]: React.CSSProperties } = {
     gridTemplateColumns: '1fr 1fr',
     gap: '15px',
   },
+  grid3: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr 1fr',
+    gap: '15px',
+  },
+  fingerprintNoisesGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '12px',
+    background: 'rgba(255, 255, 255, 0.01)',
+    border: `1px solid ${theme.colors.border}`,
+    borderRadius: '12px',
+    padding: '12px 16px',
+  },
   seedGroup: {
     display: 'flex',
     alignItems: 'flex-end',
@@ -817,6 +1024,27 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: '16px',
     height: '16px',
     cursor: 'pointer',
+  },
+  extensionsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    background: 'rgba(255, 255, 255, 0.01)',
+    border: `1px solid ${theme.colors.border}`,
+    borderRadius: '12px',
+    padding: '12px 16px',
+    maxHeight: '140px',
+    overflowY: 'auto',
+  },
+  extensionCheckboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    cursor: 'pointer',
+    fontSize: '13px',
+  },
+  extensionCheckboxText: {
+    color: theme.colors.textPrimary,
   },
   modalFooter: {
     display: 'flex',
