@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Sidecar compiled resources
+src-tauri/resources/sidecar/nodejs/server.cjs
+src-tauri/resources/sidecar/nodejs/package.json
+src-tauri/resources/sidecar/nodejs/node_modules/

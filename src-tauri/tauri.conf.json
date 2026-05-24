@@ -12,9 +12,10 @@
   "app": {
     "windows": [
       {
-        "title": "tauri-sidecar-template",
-        "width": 800,
-        "height": 600
+        "title": "antibrowsers - Antidetect Browser Controller",
+        "width": 1280,
+        "height": 800,
+        "center": true
       }
     ],
     "security": {
