@@ -201,9 +201,7 @@ export default function App() {
         {/* SIDEBAR TRÁI */}
         <aside style={styles.sidebar}>
           <div style={styles.logoContainer}>
-            <div style={styles.logoIcon}>
-              <Shield size={24} color={theme.colors.accent} />
-            </div>
+            <img src="/logo.png" alt="Antibrowsers Logo" style={{ width: '32px', height: '32px', borderRadius: '8px', objectFit: 'contain' }} />
             <div>
               <h1 style={styles.logoText}>antibrowsers</h1>
               <span style={styles.logoSubtext}>Antidetect Controller</span>
