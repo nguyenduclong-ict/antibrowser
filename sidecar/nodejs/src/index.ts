@@ -15,15 +15,15 @@ function parseTauriPort(): number | null {
 }
 
 async function main() {
-  console.log('[Sidecar Node.js] Khởi động sidecar...');
+  console.log('[Sidecar Node.js] Starting sidecar...');
   
   const tauriPort = parseTauriPort();
   if (!tauriPort) {
-    console.error('[Sidecar Node.js] Thiếu tham số --tauri-port=XXXX. Thoát.');
+    console.error('[Sidecar Node.js] Missing parameter --tauri-port=XXXX. Exiting.');
     process.exit(1);
   }
   
-  console.log(`[Sidecar Node.js] Nhận cổng tauri: ${tauriPort}`);
+  console.log(`[Sidecar Node.js] Received tauri port: ${tauriPort}`);
 
   try {
     // 1. Khởi động server
@@ -31,7 +31,7 @@ async function main() {
     
     // 2. Gửi request PUT đến tauri để thông báo đã ready
     const readyUrl = `http://127.0.0.1:${tauriPort}/api/sidecar/ready`;
-    console.log(`[Sidecar Node.js] Đăng ký ready tại: ${readyUrl}`);
+    console.log(`[Sidecar Node.js] Registering ready at: ${readyUrl}`);
     
     const response = await fetch(readyUrl, {
       method: 'PUT',
@@ -45,13 +45,13 @@ async function main() {
     });
     
     if (response.ok) {
-      console.log('[Sidecar Node.js] Đăng ký thành công với Tauri!');
+      console.log('[Sidecar Node.js] Registered successfully with Tauri!');
     } else {
-      console.error(`[Sidecar Node.js] Đăng ký thất bại với Tauri. HTTP Status: ${response.status}`);
+      console.error(`[Sidecar Node.js] Registration failed with Tauri. HTTP Status: ${response.status}`);
       process.exit(1);
     }
   } catch (err) {
-    console.error('[Sidecar Node.js] Lỗi trong quá trình khởi chạy:', err);
+    console.error('[Sidecar Node.js] Error during startup:', err);
     process.exit(1);
   }
 }

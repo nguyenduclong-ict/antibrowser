@@ -17,14 +17,14 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ message }) => {
           <div style={styles.centerDot}></div>
         </div>
         
-        <h2 style={styles.title}>Đang chuẩn bị hệ thống</h2>
+        <h2 style={styles.title}>Preparing system</h2>
         <p style={styles.message}>{message}</p>
         
         <div style={styles.progressBar}>
           <div style={styles.progressFill}></div>
         </div>
         
-        <span style={styles.hint}>Lần đầu chạy ứng dụng có thể mất 1-2 phút để thiết lập môi trường Node.js.</span>
+        <span style={styles.hint}>First-time run may take 1-2 minutes to set up the Node.js environment.</span>
       </div>
     </div>
   );

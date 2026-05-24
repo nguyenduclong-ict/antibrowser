@@ -18,7 +18,7 @@ pub fn get_node_bin_path(app_handle: &AppHandle) -> PathBuf {
     let app_dir = app_handle
         .path()
         .app_data_dir()
-        .expect("Không thể lấy thư mục app data");
+        .expect("Cannot get app data directory");
     
     #[cfg(target_os = "windows")]
     {
@@ -43,8 +43,8 @@ pub fn get_node_bin_path(app_handle: &AppHandle) -> PathBuf {
 pub async fn setup_node_runtime(app_handle: &AppHandle) -> Result<PathBuf, Box<dyn std::error::Error + Send + Sync>> {
     #[cfg(dev)]
     {
-        println!("[Tauri Node Runtime] Đang chạy ở chế độ DEV. Sử dụng Node.js của hệ thống.");
-        let _ = app_handle.emit("boot:status", "Chế độ DEV: Đang sử dụng Node.js của hệ thống...");
+        println!("[Tauri Node Runtime] Running in DEV mode. Using system Node.js.");
+        let _ = app_handle.emit("boot:status", "DEV Mode: Using system Node.js...");
         
         #[cfg(target_os = "windows")]
         return Ok(PathBuf::from("node.exe"));
@@ -57,11 +57,11 @@ pub async fn setup_node_runtime(app_handle: &AppHandle) -> Result<PathBuf, Box<d
         let node_bin = get_node_bin_path(app_handle);
         
         if node_bin.exists() {
-            println!("[Tauri Node Runtime] Node.js đã tồn tại tại: {:?}", node_bin);
+            println!("[Tauri Node Runtime] Node.js already exists at: {:?}", node_bin);
             return Ok(node_bin);
         }
         
-        println!("[Tauri Node Runtime] Node.js chưa cài đặt. Đang tiến hành tải...");
+        println!("[Tauri Node Runtime] Node.js is not installed. Downloading...");
         
         let app_dir = app_handle.path().app_data_dir()?;
         let node_dir = app_dir.join("node");
@@ -82,10 +82,10 @@ pub async fn setup_node_runtime(app_handle: &AppHandle) -> Result<PathBuf, Box<d
         let _ = fs::remove_file(archive_path);
         
         if node_bin.exists() {
-            println!("[Tauri Node Runtime] Cài đặt Node.js thành công! Bin path: {:?}", node_bin);
+            println!("[Tauri Node Runtime] Node.js installed successfully! Bin path: {:?}", node_bin);
             Ok(node_bin)
         } else {
-            Err(format!("Cài đặt thành công nhưng không tìm thấy file thực thi tại {:?}", node_bin).into())
+            Err(format!("Installed successfully but executable file not found at {:?}", node_bin).into())
         }
     }
 }
@@ -127,13 +127,13 @@ async fn download_file_with_progress(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let client = Client::new();
     let res = client.get(url).send().await?;
-    let total_size = res.content_length().ok_or("Không thể lấy kích thước file")?;
+    let total_size = res.content_length().ok_or("Cannot get file size")?;
     
     let mut file = File::create(output_path)?;
     let mut downloaded: u64 = 0;
     let mut stream = res.bytes_stream();
     
-    println!("[Tauri Node Runtime] Bắt đầu tải, tổng dung lượng: {} MB", total_size as f64 / 1_048_576.0);
+    println!("[Tauri Node Runtime] Starting download, total size: {} MB", total_size as f64 / 1_048_576.0);
     
     while let Some(item) = stream.next().await {
         let chunk = item?;
@@ -141,10 +141,10 @@ async fn download_file_with_progress(
         downloaded += chunk.len() as u64;
         
         let percent = (downloaded as f64 / total_size as f64) * 100.0;
-        app_handle.emit("boot:status", format!("Tải môi trường Node.js: {:.1}%", percent))?;
+        app_handle.emit("boot:status", format!("Downloading Node.js environment: {:.1}%", percent))?;
     }
     
-    app_handle.emit("boot:status", "Tải Node.js hoàn thành. Đang giải nén...")?;
+    app_handle.emit("boot:status", "Node.js download completed. Extracting...")?;
     Ok(())
 }
 
@@ -158,7 +158,7 @@ fn extract_archive(
         .and_then(|s| s.to_str())
         .unwrap_or("");
         
-    println!("[Tauri Node Runtime] Giải nén file: {:?} sang {:?}", archive_path, dest_dir);
+    println!("[Tauri Node Runtime] Extracting file: {:?} to {:?}", archive_path, dest_dir);
     
     if extension == "zip" {
         // Giải nén file .zip (Windows)
@@ -187,7 +187,7 @@ fn extract_archive(
             
             if i % 50 == 0 {
                 let percent = (i as f64 / total_files as f64) * 100.0;
-                let _ = app_handle.emit("boot:status", format!("Đang giải nén: {:.1}%", percent));
+                let _ = app_handle.emit("boot:status", format!("Extracting: {:.1}%", percent));
             }
         }
     } else if extension == "gz" {
@@ -199,7 +199,7 @@ fn extract_archive(
         // Giải nén tất cả
         archive.unpack(dest_dir)?;
     } else {
-        return Err(format!("Định dạng lưu trữ không được hỗ trợ: {}", extension).into());
+        return Err(format!("Archive format not supported: {}", extension).into());
     }
     
     Ok(())

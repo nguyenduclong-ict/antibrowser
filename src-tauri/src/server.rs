@@ -39,7 +39,7 @@ pub async fn start_axum_server(
     let local_addr = listener.local_addr()?;
     let bound_port = local_addr.port();
 
-    println!("[Tauri Axum Server] Đang chạy tại http://{}", local_addr);
+    println!("[Tauri Axum Server] Running at http://{}", local_addr);
 
     // Spawn server chạy dưới background thread
     tokio::spawn(async move {
@@ -54,7 +54,7 @@ async fn handle_sidecar_ready(
     Json(payload): Json<SidecarReadyRequest>,
 ) -> Json<serde_json::Value> {
     println!(
-        "[Tauri Axum Server] Nhận đăng ký ready từ sidecar '{}' trên cổng {}",
+        "[Tauri Axum Server] Received ready registration from sidecar '{}' on port {}",
         payload.name, payload.port
     );
 
@@ -83,7 +83,7 @@ async fn handle_sidecar_ready(
         port: payload.port,
     };
     if let Err(e) = ctx.app_handle.emit("sidecar:ready", &info) {
-        eprintln!("[Tauri Axum Server] Không thể emit event sidecar:ready: {}", e);
+        eprintln!("[Tauri Axum Server] Cannot emit sidecar:ready event: {}", e);
     }
 
     // Kiểm tra xem tất cả các sidecar đã ready chưa
@@ -94,9 +94,9 @@ async fn handle_sidecar_ready(
     });
 
     if all_ready {
-        println!("[Tauri Axum Server] Tất cả sidecars đã ready!");
+        println!("[Tauri Axum Server] All sidecars are ready!");
         if let Err(e) = ctx.app_handle.emit("sidecar:all-ready", ()) {
-            eprintln!("[Tauri Axum Server] Không thể emit event sidecar:all-ready: {}", e);
+            eprintln!("[Tauri Axum Server] Cannot emit sidecar:all-ready event: {}", e);
         }
     }
 

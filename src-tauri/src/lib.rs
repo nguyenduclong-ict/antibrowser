@@ -10,11 +10,11 @@ use crate::sidecar::{node_runtime, start_nodejs_sidecar};
 
 async fn boot_sequence(app_handle: AppHandle, state: Arc<Mutex<AppState>>) {
     // 1. Khởi động Axum server trước để lấy port
-    println!("[Tauri Boot] 1. Khởi động Axum server...");
+    println!("[Tauri Boot] 1. Starting Axum server...");
     let bound_port = match server::start_axum_server(app_handle.clone(), state.clone()).await {
         Ok(port) => port,
         Err(e) => {
-            let err_msg = format!("Lỗi khởi động Axum server: {}", e);
+            let err_msg = format!("Error starting Axum server: {}", e);
             eprintln!("{}", err_msg);
             let _ = app_handle.emit("boot:status", err_msg);
             return;
@@ -28,13 +28,13 @@ async fn boot_sequence(app_handle: AppHandle, state: Arc<Mutex<AppState>>) {
     }
 
     // 2. Kiểm tra và tải Node.js portable
-    println!("[Tauri Boot] 2. Kiểm tra/Tải Node.js portable...");
-    let _ = app_handle.emit("boot:status", "Đang chuẩn bị môi trường Node.js...");
+    println!("[Tauri Boot] 2. Checking/Downloading portable Node.js...");
+    let _ = app_handle.emit("boot:status", "Preparing Node.js environment...");
     
     let node_bin = match node_runtime::setup_node_runtime(&app_handle).await {
         Ok(path) => path,
         Err(e) => {
-            let err_msg = format!("Lỗi chuẩn bị Node.js runtime: {}", e);
+            let err_msg = format!("Error preparing Node.js runtime: {}", e);
             eprintln!("{}", err_msg);
             let _ = app_handle.emit("boot:status", err_msg);
             return;
@@ -48,11 +48,11 @@ async fn boot_sequence(app_handle: AppHandle, state: Arc<Mutex<AppState>>) {
     }
 
     // 3. Khởi động sidecar Node.js
-    println!("[Tauri Boot] 3. Khởi động Node.js sidecar...");
-    let _ = app_handle.emit("boot:status", "Đang khởi động Sidecar Node.js...");
+    println!("[Tauri Boot] 3. Starting Node.js sidecar...");
+    let _ = app_handle.emit("boot:status", "Starting Node.js Sidecar...");
     
     if let Err(e) = start_nodejs_sidecar(app_handle.clone(), node_bin, bound_port, state.clone()).await {
-        let err_msg = format!("Lỗi khởi động sidecar: {}", e);
+        let err_msg = format!("Error starting sidecar: {}", e);
         eprintln!("{}", err_msg);
         let _ = app_handle.emit("boot:status", err_msg);
     }
@@ -88,7 +88,7 @@ pub fn run() {
     let state_exit = state.clone();
     app.run(move |_app_handle, event| {
         if let tauri::RunEvent::ExitRequested { .. } = event {
-            println!("[Tauri Exit] Thoát ứng dụng. Dọn dẹp sidecars...");
+            println!("[Tauri Exit] App exit. Cleaning up sidecars...");
             sidecar::kill_all_sidecars(state_exit.clone());
         }
     });

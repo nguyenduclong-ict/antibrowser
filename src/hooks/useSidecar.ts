@@ -9,7 +9,7 @@ export interface SidecarMap {
 
 export function useSidecar() {
   const [sidecars, setSidecars] = useState<SidecarMap>({});
-  const [bootMessage, setBootMessage] = useState('Đang khởi tạo ứng dụng...');
+  const [bootMessage, setBootMessage] = useState('Initializing application...');
   const [allReady, setAllReady] = useState(false);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export function useSidecar() {
         // 1. Lắng nghe sự kiện một sidecar cụ thể đã ready
         unlistenReady = await listen<{ name: string; port: number }>('sidecar:ready', (event) => {
           const { name, port } = event.payload;
-          console.log(`[useSidecar Hook] Nhận event 'sidecar:ready' từ ${name} tại port ${port}`);
+          console.log(`[useSidecar Hook] Received 'sidecar:ready' event from ${name} at port ${port}`);
           
           setSidecars((prev) => {
             const next = { ...prev };
@@ -39,28 +39,28 @@ export function useSidecar() {
 
         // 2. Lắng nghe cập nhật trạng thái boot từ Rust
         unlistenStatus = await listen<string>('boot:status', (event) => {
-          console.log('[useSidecar Hook] Nhận status boot:', event.payload);
+          console.log('[useSidecar Hook] Received boot status:', event.payload);
           setBootMessage(event.payload);
         });
 
         // 3. Lắng nghe khi tất cả sidecars đã sẵn sàng
         unlistenAllReady = await listen<void>('sidecar:all-ready', () => {
-          console.log('[useSidecar Hook] Tất cả sidecars đã sẵn sàng hoạt động!');
+          console.log('[useSidecar Hook] All sidecars are ready to run!');
           setAllReady(true);
         });
       } catch (err) {
-        console.error('Lỗi khi đăng ký lắng nghe sự kiện Tauri:', err);
+        console.error('Error registering Tauri event listener:', err);
       }
     }
 
     async function checkInitialStatus() {
       try {
         const statuses = await invoke<Record<string, { name: string; port: number | null; status: any }>>('get_sidecars_status');
-        console.log('[useSidecar Hook] Trạng thái sidecars ban đầu từ Rust:', statuses);
+        console.log('[useSidecar Hook] Initial sidecars status from Rust:', statuses);
         
         if (statuses.nodejs && statuses.nodejs.status === 'Ready' && statuses.nodejs.port) {
           const port = statuses.nodejs.port;
-          console.log(`[useSidecar Hook] Sidecar nodejs đã ready từ trước tại port ${port}. Đang khởi tạo bridge...`);
+          console.log(`[useSidecar Hook] Sidecar nodejs is already ready at port ${port}. Initializing bridge...`);
           setSidecars((prev) => {
             const next = { ...prev };
             if (next.nodejs) {
@@ -72,7 +72,7 @@ export function useSidecar() {
           setAllReady(true);
         }
       } catch (err) {
-        console.error('Lỗi khi lấy trạng thái sidecars ban đầu:', err);
+        console.error('Error getting initial sidecar status:', err);
       }
     }
 

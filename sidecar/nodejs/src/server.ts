@@ -14,9 +14,9 @@ export async function createSidecarServer() {
   
   app.get('/api/list-users', (c) => {
     return c.json([
-      { id: 1, name: 'Nguyen Van A' },
-      { id: 2, name: 'Tran Thi B' },
-      { id: 3, name: 'Le Van C' }
+      { id: 1, name: 'John Doe' },
+      { id: 2, name: 'Jane Smith' },
+      { id: 3, name: 'Bob Johnson' }
     ]);
   });
 
@@ -35,18 +35,18 @@ export async function createSidecarServer() {
 
   // Socket.io event handling
   io.on('connection', (socket) => {
-    console.log(`[Sidecar Node.js] Client kết nối: ${socket.id}`);
+    console.log(`[Sidecar Node.js] Client connected: ${socket.id}`);
 
     // Gửi event chào mừng
-    socket.emit('welcome', { message: 'Chào mừng bạn kết nối với Sidecar Node.js!' });
+    socket.emit('welcome', { message: 'Welcome to the Node.js Sidecar!' });
 
     socket.on('ping-event', (data) => {
-      console.log(`[Sidecar Node.js] Nhận ping:`, data);
+      console.log(`[Sidecar Node.js] Received ping:`, data);
       socket.emit('pong-event', { reply: 'pong', time: new Date().toISOString() });
     });
 
     socket.on('disconnect', () => {
-      console.log(`[Sidecar Node.js] Client ngắt kết nối: ${socket.id}`);
+      console.log(`[Sidecar Node.js] Client disconnected: ${socket.id}`);
     });
   });
 
@@ -56,10 +56,10 @@ export async function createSidecarServer() {
       const addr = server.address();
       if (addr && typeof addr === 'object') {
         const port = addr.port;
-        console.log(`[Sidecar Node.js] Server đang chạy tại http://127.0.0.1:${port}`);
+        console.log(`[Sidecar Node.js] Server is running at http://127.0.0.1:${port}`);
         resolve({ port, httpServer: server });
       } else {
-        reject(new Error('Không thể lấy địa chỉ server sidecar'));
+        reject(new Error('Cannot get sidecar server address'));
       }
     });
 

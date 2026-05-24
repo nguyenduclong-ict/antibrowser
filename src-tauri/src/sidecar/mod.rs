@@ -13,7 +13,7 @@ pub async fn start_nodejs_sidecar(
     tauri_port: u16,
     state: Arc<Mutex<AppState>>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    println!("[Tauri Sidecar Manager] Đang khởi chạy sidecar Node.js...");
+    println!("[Tauri Sidecar Manager] Spawning Node.js sidecar...");
     
     // 1. Xác định bundle path của server.cjs động theo chế độ DEV hay PRODUCTION
     #[cfg(dev)]
@@ -27,7 +27,7 @@ pub async fn start_nodejs_sidecar(
     let server_js = app_handle
         .path()
         .resource_dir()
-        .expect("Không thể lấy thư mục resource")
+        .expect("Cannot get resource directory")
         .join("resources")
         .join("sidecar")
         .join("nodejs")
@@ -36,7 +36,7 @@ pub async fn start_nodejs_sidecar(
     println!("[Tauri Sidecar Manager] File server.cjs path: {:?}", server_js);
 
     if !server_js.exists() {
-        let err_msg = format!("Không tìm thấy file bundle server.cjs tại: {:?}", server_js);
+        let err_msg = format!("Cannot find bundle file server.cjs at: {:?}", server_js);
         eprintln!("{}", err_msg);
         return Err(err_msg.into());
     }
@@ -56,7 +56,7 @@ pub async fn start_nodejs_sidecar(
     }
 
     // Gửi thông báo đến UI
-    app_handle.emit("boot:status", "Đang khởi động Node.js sidecar...")?;
+    app_handle.emit("boot:status", "Starting Node.js sidecar...")?;
 
     // 3. Spawn Node.js process sử dụng tauri-plugin-shell
     // Chạy lệnh: node.exe path/to/server.js --tauri-port=XXXX
@@ -106,12 +106,12 @@ pub async fn start_nodejs_sidecar(
 }
 
 pub fn kill_all_sidecars(state: Arc<Mutex<AppState>>) {
-    println!("[Tauri Sidecar Manager] Đang dừng tất cả các sidecars...");
+    println!("[Tauri Sidecar Manager] Stopping all sidecars...");
     let mut app_state = state.lock().unwrap();
     
     for (name, entry) in app_state.sidecars.iter_mut() {
         if let Some(child) = entry.process.take() {
-            println!("[Tauri Sidecar Manager] Đang kill process sidecar: {}", name);
+            println!("[Tauri Sidecar Manager] Killing sidecar process: {}", name);
             let _ = child.kill();
             entry.status = SidecarStatus::Stopped;
         }

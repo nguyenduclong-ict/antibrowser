@@ -14,53 +14,53 @@ export default function App() {
 
   const nodeBridge = sidecars.nodejs;
 
-  // Lắng nghe sự kiện socket realtime từ sidecar khi ready
+  // Listen to realtime socket events from sidecar when ready
   useEffect(() => {
     if (!nodeBridge) return;
 
-    // 1. Kiểm tra REST API health
+    // 1. Check REST API health
     const checkHealth = async () => {
       try {
         const health = await nodeBridge.getHealth();
         if (health.status === 'ok') {
           setRestStatus('ok');
-          // Lấy danh sách user mẫu
+          // Get sample user list
           const userList = await nodeBridge.getListUsers();
           setUsers(userList);
         } else {
           setRestStatus('failed');
         }
       } catch (err) {
-        console.error('Lỗi kiểm tra REST sidecar:', err);
+        console.error('REST sidecar check error:', err);
         setRestStatus('failed');
       }
     };
 
     checkHealth();
 
-    // 2. Đăng ký listener các sự kiện socket.io
+    // 2. Register socket.io event listeners
     const addLog = (msg: string) => {
       setSocketLogs((prev) => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev].slice(0, 10));
     };
 
     nodeBridge.on('connect', () => {
-      addLog('Socket connected thành công tới Sidecar Node.js!');
+      addLog('Socket connected successfully to Node.js Sidecar!');
     });
 
     nodeBridge.on('welcome', (data: { message: string }) => {
-      addLog(`[Event welcome] Sidecar gửi: "${data.message}"`);
+      addLog(`[Event welcome] Sidecar sent: "${data.message}"`);
     });
 
     nodeBridge.on('pong-event', (data: { reply: string; time: string }) => {
-      addLog(`[Event pong-event] Sidecar phản hồi: "${data.reply}" vào lúc ${data.time}`);
+      addLog(`[Event pong-event] Sidecar replied: "${data.reply}" at ${data.time}`);
     });
 
     nodeBridge.on('disconnect', () => {
-      addLog('Socket ngắt kết nối với Sidecar Node.js!');
+      addLog('Socket disconnected from Node.js Sidecar!');
     });
 
     return () => {
-      // socket.io listener cleanup tự động trong useSidecar hoặc thủ công
+      // socket.io listener cleanup automatically in useSidecar or manually
       nodeBridge.off('connect', () => {});
       nodeBridge.off('welcome', () => {});
       nodeBridge.off('pong-event', () => {});
@@ -68,26 +68,26 @@ export default function App() {
     };
   }, [nodeBridge]);
 
-  // Gửi ping qua socket
+  // Send ping via socket
   const handleSendPing = () => {
     if (!nodeBridge) return;
     nodeBridge.pingSocket({ message: inputPing });
-    setSocketLogs((prev) => [`[${new Date().toLocaleTimeString()}] [Gửi ping-event] gửi: "${inputPing}"`, ...prev]);
+    setSocketLogs((prev) => [`[${new Date().toLocaleTimeString()}] [Send ping-event] sent: "${inputPing}"`, ...prev]);
   };
 
-  // Gọi Tauri Command để restart sidecar nóng
+  // Call Tauri Command to hot restart sidecar
   const handleRestartSidecar = async () => {
     if (isRestarting) return;
     setIsRestarting(true);
     setRestStatus('checking');
     setUsers([]);
-    setSocketLogs((prev) => [`[System] Đang gửi lệnh restart nóng tới Tauri...`, ...prev]);
+    setSocketLogs((prev) => [`[System] Sending hot restart command to Tauri...`, ...prev]);
     try {
       await invoke('restart_sidecar', { name: 'nodejs' });
-      setSocketLogs((prev) => [`[System] Lệnh restart gửi thành công. Đang đợi sidecar re-connect...`, ...prev]);
+      setSocketLogs((prev) => [`[System] Restart command sent successfully. Waiting for sidecar to re-connect...`, ...prev]);
     } catch (err) {
       console.error(err);
-      setSocketLogs((prev) => [`[System Error] Restart thất bại: ${err}`, ...prev]);
+      setSocketLogs((prev) => [`[System Error] Restart failed: ${err}`, ...prev]);
     } finally {
       setIsRestarting(false);
     }
@@ -109,14 +109,14 @@ export default function App() {
         <header style={styles.header}>
           <div>
             <h1 style={styles.appTitle}>Tauri Node.js Bridge</h1>
-            <p style={styles.appSubtitle}>Base project template mẫu sidecar Node.js quản lý động</p>
+            <p style={styles.appSubtitle}>Base project template with dynamically managed Node.js sidecar</p>
           </div>
           <button 
             style={isRestarting ? { ...styles.btnRestart, opacity: 0.5 } : styles.btnRestart} 
             onClick={handleRestartSidecar}
             disabled={isRestarting}
           >
-            {isRestarting ? 'Đang restart...' : 'Restart Sidecar 🔄'}
+            {isRestarting ? 'Restarting...' : 'Restart Sidecar 🔄'}
           </button>
         </header>
 
@@ -124,7 +124,7 @@ export default function App() {
         <section style={styles.statusGrid}>
           <div style={styles.statusCard}>
             <span style={styles.statusLabel}>Axum Server (Tauri)</span>
-            <span style={styles.statusValueOk}>Chạy 🟢</span>
+            <span style={styles.statusValueOk}>Running 🟢</span>
           </div>
           <div style={styles.statusCard}>
             <span style={styles.statusLabel}>Sidecar Node.js REST</span>
@@ -157,7 +157,7 @@ export default function App() {
                   </div>
                 ))
               ) : (
-                <div style={styles.emptyState}>Đang tải dữ liệu từ REST API...</div>
+                <div style={styles.emptyState}>Loading data from REST API...</div>
               )}
             </div>
           </div>
@@ -172,9 +172,9 @@ export default function App() {
                 value={inputPing} 
                 onChange={(e) => setInputPing(e.target.value)} 
                 style={styles.inputText}
-                placeholder="Nội dung gửi ping..."
+                placeholder="Ping message content..."
               />
-              <button onClick={handleSendPing} style={styles.btnSend}>Gửi Ping ⚡</button>
+              <button onClick={handleSendPing} style={styles.btnSend}>Send Ping ⚡</button>
             </div>
 
             <div style={styles.logsConsole}>
@@ -183,7 +183,7 @@ export default function App() {
                   <div key={index} style={styles.logLine}>{log}</div>
                 ))
               ) : (
-                <div style={styles.emptyState}>Chưa có log sự kiện nào.</div>
+                <div style={styles.emptyState}>No event logs yet.</div>
               )}
             </div>
           </div>
@@ -191,7 +191,7 @@ export default function App() {
 
         {/* Footer */}
         <footer style={styles.footer}>
-          <span>Mẫu thiết kế Premium & Dynamic bởi Antigravity AI</span>
+          <span>Premium & Dynamic template designed by Antigravity AI</span>
           <span>Tauri v2 + Hono + Socket.io + React TS</span>
         </footer>
       </div>

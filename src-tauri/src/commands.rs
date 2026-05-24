@@ -40,7 +40,7 @@ pub async fn restart_sidecar(
     name: String,
 ) -> Result<(), String> {
     if name != "nodejs" {
-        return Err(format!("Sidecar '{}' không được hỗ trợ để restart", name));
+        return Err(format!("Sidecar '{}' is not supported for restart", name));
     }
     
     // 1. Kill old process
@@ -74,7 +74,7 @@ pub async fn restart_sidecar(
     let state_clone = state.inner().clone();
     tauri::async_runtime::spawn(async move {
         if let Err(e) = start_nodejs_sidecar(app, node_bin_path, tauri_port, state_clone).await {
-            eprintln!("[Tauri Commands] Khởi động lại sidecar thất bại: {}", e);
+            eprintln!("[Tauri Commands] Failed to restart sidecar: {}", e);
         }
     });
     

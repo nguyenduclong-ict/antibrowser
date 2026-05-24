@@ -27,11 +27,11 @@ export class SidecarBridge {
     });
 
     this.socket.on('connect', () => {
-      console.log(`[Bridge] Kết nối socket thành công tới cổng ${port}! ID: ${this.socket.id}`);
+      console.log(`[Bridge] Socket connection successful to port ${port}! ID: ${this.socket.id}`);
     });
 
     this.socket.on('connect_error', (err) => {
-      console.error(`[Bridge] Kết nối socket thất bại tới cổng ${port}:`, err);
+      console.error(`[Bridge] Socket connection failed to port ${port}:`, err);
     });
   }
 
@@ -52,7 +52,7 @@ export class SidecarBridge {
 
   // Dọn dẹp connection khi hủy bridge
   destroy() {
-    console.log(`[Bridge] Đang dọn dẹp kết nối tới cổng ${this.port}...`);
+    console.log(`[Bridge] Cleaning up connection to port ${this.port}...`);
     this.socket.disconnect();
   }
 }
