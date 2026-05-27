@@ -29,9 +29,7 @@ try {
       'bufferutil', 
       'utf-8-validate', 
       'playwright-core', 
-      'cloakbrowser', 
-      'socks-proxy-agent', 
-      'mmdb-lib'
+      'cloakbrowser'
     ],
   });
   console.log('[Esbuild Sidecar] Build bundle server.cjs thành công!');

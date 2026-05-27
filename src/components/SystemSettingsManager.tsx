@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NodeSidecarBridge } from '../lib/bridge/NodeSidecarBridge';
+import { NodeSidecarBridge, ChromiumStatus } from '../lib/bridge/NodeSidecarBridge';
 import { theme } from '../styles/theme';
 import { 
   Settings, 
@@ -23,6 +23,15 @@ export function SystemSettingsManager({ bridge, addLog }: SystemSettingsManagerP
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
   const [defaultCacheDir, setDefaultCacheDir] = useState('');
 
+  // Chromium states
+  const [chromiumStatus, setChromiumStatus] = useState<ChromiumStatus | null>(null);
+  const [chromiumLoading, setChromiumLoading] = useState(true);
+  const [localDownload, setLocalDownload] = useState<{
+    status: 'Idle' | 'Downloading' | 'Extracting' | 'Installed' | 'Error';
+    progress: number;
+    message?: string;
+  }>({ status: 'Idle', progress: 0 });
+
   const loadSettings = async () => {
     setLoading(true);
     try {
@@ -38,9 +47,83 @@ export function SystemSettingsManager({ bridge, addLog }: SystemSettingsManagerP
     }
   };
 
+  const fetchChromiumStatus = async () => {
+    setChromiumLoading(true);
+    try {
+      const status = await bridge.getChromiumStatus();
+      setChromiumStatus(status);
+    } catch (err) {
+      console.error('Lỗi tải trạng thái Chromium:', err);
+      addLog('Lỗi kiểm tra trạng thái nhân Chromium.');
+    } finally {
+      setChromiumLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadSettings();
+    fetchChromiumStatus();
+
+    // Lắng nghe sự kiện socket để hiển thị tiến độ tải tại chỗ
+    bridge.on('chromium:download-status', (data: { status: any; message: string }) => {
+      setLocalDownload(prev => ({
+        ...prev,
+        status: data.status,
+        message: data.message
+      }));
+      
+      if (data.status === 'Installed' || data.status === 'Idle') {
+        fetchChromiumStatus();
+        setTimeout(() => {
+          setLocalDownload(prev => ({ ...prev, status: 'Idle', progress: 0, message: '' }));
+        }, 3000);
+      }
+    });
+
+    bridge.on('chromium:download-progress', (data: { progress: number }) => {
+      setLocalDownload(prev => ({
+        ...prev,
+        status: 'Downloading',
+        progress: data.progress
+      }));
+    });
+
+    return () => {
+      bridge.off('chromium:download-status', () => {});
+      bridge.off('chromium:download-progress', () => {});
+    };
   }, []);
+
+  const handleDownloadChromium = async () => {
+    addLog('Bắt đầu gửi yêu cầu tải nhân Chromium Stealth...');
+    try {
+      setLocalDownload({ status: 'Downloading', progress: 0, message: 'Đang gửi yêu cầu tải...' });
+      const res = await bridge.downloadChromium();
+      if (res.success) {
+        addLog('Đã kích hoạt tiến trình tải Chromium ngầm thành công.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      addLog(`Lỗi kích hoạt tải Chromium: ${err.message}`);
+      setLocalDownload({ status: 'Error', progress: 0, message: err.message });
+    }
+  };
+
+  const handleClearChromiumCache = async () => {
+    if (!confirm('Bạn có chắc chắn muốn xóa nhân Chromium Stealth? Hệ thống sẽ cần tải lại Chromium ở lần chạy tiếp theo.')) return;
+    
+    addLog('Đang xóa cache nhân Chromium...');
+    try {
+      const res = await bridge.clearChromiumCache();
+      if (res.success) {
+        addLog('Đã xóa thành công nhân Chromium.');
+        fetchChromiumStatus();
+      }
+    } catch (err: any) {
+      console.error(err);
+      addLog(`Lỗi xóa nhân Chromium: ${err.message}`);
+    }
+  };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,6 +221,101 @@ export function SystemSettingsManager({ bridge, addLog }: SystemSettingsManagerP
                 />
               </div>
               <span style={styles.helperText}>Nơi lưu trữ cookie, cache, localstorage của các Profile. Nên dùng đường dẫn cục bộ tốc độ cao (SSD).</span>
+            </div>
+
+            {/* Quản lý Nhân Trình Duyệt Chromium Stealth */}
+            <div style={styles.chromiumCard}>
+              <h4 style={styles.runtimeTitle}>Quản Lý Nhân Trình Duyệt Chromium Stealth</h4>
+              
+              {chromiumLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: theme.colors.textSecondary, fontSize: '13px', padding: '10px 0' }}>
+                  <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite', color: theme.colors.accent }} />
+                  <span>Đang tải thông tin nhân trình duyệt...</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  <div style={styles.infoGrid}>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Trạng thái cài đặt:</span>
+                      <span style={chromiumStatus?.installed ? { color: theme.colors.success, fontWeight: 600 } : { color: theme.colors.danger, fontWeight: 600 }}>
+                        {chromiumStatus?.installed ? 'Đã Cài Đặt (Sẵn Sàng)' : 'Chưa Cài Đặt'}
+                      </span>
+                    </div>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Phiên bản nhân:</span>
+                      <span style={styles.infoValue}>{chromiumStatus?.version || 'N/A'}</span>
+                    </div>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Platform Tag:</span>
+                      <span style={styles.infoValue}>{chromiumStatus?.platform || 'N/A'}</span>
+                    </div>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Thư mục Cache nhân:</span>
+                      <span 
+                        style={{ ...styles.infoValue, fontSize: '11px', wordBreak: 'break-all', maxWidth: '240px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} 
+                        title={chromiumStatus?.cacheDir}
+                      >
+                        {chromiumStatus?.cacheDir || 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Tiến độ tải Chromium nội bộ */}
+                  {localDownload.status !== 'Idle' && (
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: `1px solid ${theme.colors.border}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600 }}>
+                        <span style={{ color: localDownload.status === 'Error' ? theme.colors.danger : theme.colors.accent }}>
+                          {localDownload.status === 'Downloading' && 'Đang tải file (~120MB)...'}
+                          {localDownload.status === 'Extracting' && 'Đang giải nén...'}
+                          {localDownload.status === 'Installed' && 'Cài đặt thành công!'}
+                          {localDownload.status === 'Error' && 'Lỗi cài đặt.'}
+                        </span>
+                        <span>{localDownload.progress}%</span>
+                      </div>
+                      {(localDownload.status === 'Downloading' || localDownload.status === 'Extracting') && (
+                        <div style={{ height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${localDownload.progress}%`, background: theme.colors.accent, transition: 'width 0.3s' }} />
+                        </div>
+                      )}
+                      {localDownload.status === 'Error' && (
+                        <span style={{ fontSize: '11px', color: theme.colors.danger }}>{localDownload.message}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Nút hành động */}
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+                    {!chromiumStatus?.installed && localDownload.status === 'Idle' && (
+                      <button
+                        type="button"
+                        onClick={handleDownloadChromium}
+                        style={styles.btnActionPrimary}
+                      >
+                        Tải Nhân Trình Duyệt Stealth
+                      </button>
+                    )}
+                    {chromiumStatus?.installed && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleClearChromiumCache}
+                          style={styles.btnActionDanger}
+                        >
+                          Xóa Nhân Trình Duyệt
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleDownloadChromium}
+                          style={styles.btnActionSecondary}
+                          disabled={localDownload.status !== 'Idle'}
+                        >
+                          Cập nhật / Tải lại
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Thông tin Môi trường Runtime */}
@@ -290,6 +468,49 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '12px',
     padding: '16px 20px',
     marginTop: '10px',
+  },
+  chromiumCard: {
+    background: 'rgba(255, 255, 255, 0.01)',
+    border: `1px solid ${theme.colors.border}`,
+    borderRadius: '12px',
+    padding: '20px',
+    marginTop: '10px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  btnActionPrimary: {
+    background: theme.colors.accent,
+    color: theme.colors.textPrimary,
+    border: 'none',
+    padding: '8px 16px',
+    borderRadius: theme.radius.button,
+    fontSize: '12px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  btnActionSecondary: {
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: `1px solid ${theme.colors.border}`,
+    color: theme.colors.textPrimary,
+    padding: '8px 16px',
+    borderRadius: theme.radius.button,
+    fontSize: '12px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  btnActionDanger: {
+    background: 'rgba(239, 68, 68, 0.1)',
+    border: `1px solid rgba(239, 68, 68, 0.2)`,
+    color: theme.colors.danger,
+    padding: '8px 16px',
+    borderRadius: theme.radius.button,
+    fontSize: '12px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.2s',
   },
   runtimeTitle: {
     margin: '0 0 12px 0',

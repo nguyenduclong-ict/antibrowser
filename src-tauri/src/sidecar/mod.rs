@@ -2,10 +2,26 @@ pub mod node_runtime;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::CommandEvent;
 use crate::state::{AppState, SidecarEntry, SidecarStatus};
+
+pub fn write_to_log_file(line: &str) {
+    if let Some(home) = std::env::var_os("USERPROFILE") {
+        let log_dir = std::path::Path::new(&home).join(".tauri-antidetect-browser");
+        let _ = std::fs::create_dir_all(&log_dir);
+        let log_file = log_dir.join("sidecar.log");
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(log_file)
+        {
+            use std::io::Write;
+            let _ = file.write_all(line.as_bytes());
+        }
+    }
+}
 
 pub async fn start_nodejs_sidecar(
     app_handle: AppHandle,
@@ -38,6 +54,7 @@ pub async fn start_nodejs_sidecar(
     if !server_js.exists() {
         let err_msg = format!("Cannot find bundle file server.cjs at: {:?}", server_js);
         eprintln!("{}", err_msg);
+        write_to_log_file(&format!("[ERROR] {}\n", err_msg));
         return Err(err_msg.into());
     }
 
@@ -69,6 +86,7 @@ pub async fn start_nodejs_sidecar(
         ]);
         
     let (mut rx, child) = command.spawn()?;
+    write_to_log_file("[Tauri Sidecar Manager] Node.js process spawned successfully!\n");
     println!("[Tauri Sidecar Manager] Node.js process spawned successfully!");
 
     // Lưu child process handle vào state để có thể kill sau này
@@ -81,21 +99,26 @@ pub async fn start_nodejs_sidecar(
 
     // Lắng nghe stdout/stderr từ sidecar process để ghi log
     tauri::async_runtime::spawn(async move {
+        write_to_log_file("[Tauri Sidecar Manager] Bắt đầu lắng nghe log của Node.js sidecar...\n");
         while let Some(event) = rx.recv().await {
             match event {
                 CommandEvent::Stdout(line_bytes) => {
                     let line = String::from_utf8_lossy(&line_bytes);
                     print!("[Sidecar Node.js STDOUT] {}", line);
+                    write_to_log_file(&format!("[STDOUT] {}", line));
                 }
                 CommandEvent::Stderr(line_bytes) => {
                     let line = String::from_utf8_lossy(&line_bytes);
                     eprint!("[Sidecar Node.js STDERR] {}", line);
+                    write_to_log_file(&format!("[STDERR] {}", line));
                 }
                 CommandEvent::Terminated(status) => {
-                    println!(
-                        "[Tauri Sidecar Manager] Node.js sidecar terminated with exit code: {:?}",
+                    let term_msg = format!(
+                        "[Tauri Sidecar Manager] Node.js sidecar terminated with exit code: {:?}\n",
                         status.code
                     );
+                    println!("{}", term_msg);
+                    write_to_log_file(&term_msg);
                 }
                 _ => {}
             }

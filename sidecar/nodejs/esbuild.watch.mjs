@@ -32,11 +32,7 @@ try {
       'bufferutil', 
       'utf-8-validate', 
       'playwright-core', 
-      'cloakbrowser', 
-      'socks-proxy-agent', 
-      'mmdb-lib',
-      'axios',
-      'https-proxy-agent'
+      'cloakbrowser'
     ],
   });
 

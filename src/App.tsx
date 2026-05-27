@@ -36,6 +36,13 @@ export default function App() {
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
+  const [chromiumDownload, setChromiumDownload] = useState<{
+    status: 'Idle' | 'Downloading' | 'Extracting' | 'Installed' | 'Error';
+    progress: number;
+    downloadedMB?: number;
+    totalMB?: number;
+    message?: string;
+  }>({ status: 'Idle', progress: 0 });
 
   const nodeBridge = sidecars.nodejs;
 
@@ -88,6 +95,32 @@ export default function App() {
       },
     );
 
+    // Lắng nghe sự kiện tiến trình tải Chromium
+    nodeBridge.on("chromium:download-status", (data: { status: any; message: string }) => {
+      addLog(`[Chromium Status] ${data.message} (${data.status})`);
+      setChromiumDownload((prev) => ({
+        ...prev,
+        status: data.status,
+        message: data.message,
+      }));
+
+      if (data.status === "Installed") {
+        setTimeout(() => {
+          setChromiumDownload((prev) => ({ ...prev, status: "Idle", progress: 0, message: "" }));
+        }, 4000);
+      }
+    });
+
+    nodeBridge.on("chromium:download-progress", (data: { progress: number; downloadedMB?: number; totalMB?: number }) => {
+      setChromiumDownload((prev) => ({
+        ...prev,
+        status: "Downloading",
+        progress: data.progress,
+        downloadedMB: data.downloadedMB,
+        totalMB: data.totalMB,
+      }));
+    });
+
     nodeBridge.on("disconnect", () => {
       addLog("Mất kết nối Socket.io với Node.js Sidecar.");
     });
@@ -96,6 +129,8 @@ export default function App() {
       nodeBridge.off("connect", () => {});
       nodeBridge.off("welcome", () => {});
       nodeBridge.off("profile:status-changed", () => {});
+      nodeBridge.off("chromium:download-status", () => {});
+      nodeBridge.off("chromium:download-progress", () => {});
       nodeBridge.off("disconnect", () => {});
     };
   }, [nodeBridge]);
@@ -672,6 +707,58 @@ export default function App() {
         profile={activeProfile}
         bridge={nodeBridge}
       />
+
+      {/* HUD Tiến độ Tải Chromium */}
+      {chromiumDownload.status !== 'Idle' && (
+        <div style={styles.hudOverlay}>
+          <div style={styles.hudCard}>
+            <div style={styles.hudHeader}>
+              <RefreshCw 
+                size={22} 
+                style={
+                  chromiumDownload.status === 'Downloading' || chromiumDownload.status === 'Extracting'
+                    ? { animation: 'spin 2s linear infinite', color: theme.colors.accent }
+                    : { color: chromiumDownload.status === 'Error' ? theme.colors.danger : theme.colors.success }
+                } 
+              />
+              <h3 style={styles.hudTitle}>
+                {chromiumDownload.status === 'Downloading' && 'Tải Nhân Trình Duyệt'}
+                {chromiumDownload.status === 'Extracting' && 'Giải Nén Nhân Trình Duyệt'}
+                {chromiumDownload.status === 'Installed' && 'Đã Sẵn Sàng!'}
+                {chromiumDownload.status === 'Error' && 'Lỗi Cài Đặt'}
+              </h3>
+            </div>
+            
+            <p style={styles.hudMessage}>
+              {chromiumDownload.message || 'Đang chuẩn bị nhân Chromium Stealth cho lần đầu sử dụng. Vui lòng không tắt ứng dụng.'}
+            </p>
+
+            {(chromiumDownload.status === 'Downloading' || chromiumDownload.status === 'Extracting') && (
+              <div style={styles.progressContainer}>
+                <div style={styles.progressBarBg}>
+                  <div style={{ ...styles.progressBarFill, width: `${chromiumDownload.progress}%` }} />
+                </div>
+                <div style={styles.progressMeta}>
+                  <span style={styles.progressPct}>{chromiumDownload.progress}%</span>
+                  {chromiumDownload.downloadedMB !== undefined && chromiumDownload.totalMB !== undefined && (
+                    <span style={styles.progressBytes}>{chromiumDownload.downloadedMB}MB / {chromiumDownload.totalMB}MB</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {chromiumDownload.status === 'Error' && (
+              <button 
+                type="button"
+                style={styles.hudCloseBtn}
+                onClick={() => setChromiumDownload({ status: 'Idle', progress: 0 })}
+              >
+                Đóng thông báo
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1079,5 +1166,89 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: "center",
     marginTop: "20px",
     transition: "all 0.2s",
+  },
+  hudOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(9, 10, 15, 0.75)',
+    backdropFilter: 'blur(10px)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  hudCard: {
+    background: theme.colors.panel,
+    border: `1px solid ${theme.colors.border}`,
+    borderRadius: theme.radius.card,
+    padding: '30px',
+    width: '420px',
+    maxWidth: '90%',
+    boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px',
+  },
+  hudHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  hudTitle: {
+    margin: 0,
+    fontSize: '18px',
+    fontWeight: 700,
+    color: theme.colors.textPrimary,
+  },
+  hudMessage: {
+    margin: 0,
+    fontSize: '13px',
+    color: theme.colors.textSecondary,
+    lineHeight: '1.5',
+  },
+  progressContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  progressBarBg: {
+    height: '6px',
+    background: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: '3px',
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    background: `linear-gradient(90deg, ${theme.colors.accent} 0%, #6366f1 100%)`,
+    borderRadius: '3px',
+    transition: 'width 0.3s ease-out',
+  },
+  progressMeta: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: '11px',
+    fontWeight: 600,
+  },
+  progressPct: {
+    color: theme.colors.accent,
+  },
+  progressBytes: {
+    color: theme.colors.textMuted,
+  },
+  hudCloseBtn: {
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: `1px solid ${theme.colors.border}`,
+    color: theme.colors.textPrimary,
+    padding: '10px 16px',
+    borderRadius: theme.radius.button,
+    fontSize: '13px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    width: '100%',
+    textAlign: 'center',
+    transition: 'all 0.2s',
   },
 };

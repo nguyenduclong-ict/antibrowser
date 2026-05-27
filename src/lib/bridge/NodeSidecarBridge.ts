@@ -78,6 +78,15 @@ export interface SystemSettings {
   defaultCacheDir: string;
 }
 
+export interface ChromiumStatus {
+  version: string;
+  platform: string;
+  binaryPath: string;
+  installed: boolean;
+  cacheDir: string;
+  downloadUrl: string;
+}
+
 export class NodeSidecarBridge extends SidecarBridge {
   // Gửi request test health check
   async getHealth(): Promise<{ status: string; sidecar: string }> {
@@ -209,5 +218,23 @@ export class NodeSidecarBridge extends SidecarBridge {
   // Gửi ping qua socket.io
   pingSocket(payload: { message: string }) {
     this.emit('ping-event', payload);
+  }
+
+  // Lấy thông tin trạng thái Chromium Stealth
+  async getChromiumStatus(): Promise<ChromiumStatus> {
+    const { data } = await this.api.get<ChromiumStatus>('/api/settings/chromium-status');
+    return data;
+  }
+
+  // Yêu cầu tải nhân Chromium
+  async downloadChromium(): Promise<{ success: boolean; message: string }> {
+    const { data } = await this.api.post<{ success: boolean; message: string }>('/api/settings/download-chromium');
+    return data;
+  }
+
+  // Xóa cache Chromium đã cài đặt
+  async clearChromiumCache(): Promise<{ success: boolean; message: string }> {
+    const { data } = await this.api.post<{ success: boolean; message: string }>('/api/settings/clear-chromium-cache');
+    return data;
   }
 }
