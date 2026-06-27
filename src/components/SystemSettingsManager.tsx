@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NodeSidecarBridge, ChromiumStatus } from '../lib/bridge/NodeSidecarBridge';
 import { theme } from '../styles/theme';
+import { getTranslations } from '../lib/translations.js';
 import { 
   Settings, 
   Save, 
@@ -11,9 +12,16 @@ import {
 interface SystemSettingsManagerProps {
   bridge: NodeSidecarBridge;
   addLog: (msg: string) => void;
+  language: 'vi' | 'en';
+  onLanguageChange: (lang: 'vi' | 'en') => void;
 }
 
-export function SystemSettingsManager({ bridge, addLog }: SystemSettingsManagerProps) {
+export function SystemSettingsManager({ 
+  bridge, 
+  addLog, 
+  language: initialLanguage, 
+  onLanguageChange 
+}: SystemSettingsManagerProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -22,6 +30,8 @@ export function SystemSettingsManager({ bridge, addLog }: SystemSettingsManagerP
   const [language, setLanguage] = useState<'vi' | 'en'>('vi');
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
   const [defaultCacheDir, setDefaultCacheDir] = useState('');
+
+  const t = getTranslations(language);
 
   // Chromium states
   const [chromiumStatus, setChromiumStatus] = useState<ChromiumStatus | null>(null);
@@ -110,18 +120,18 @@ export function SystemSettingsManager({ bridge, addLog }: SystemSettingsManagerP
   };
 
   const handleClearChromiumCache = async () => {
-    if (!confirm('Bạn có chắc chắn muốn xóa nhân Chromium Stealth? Hệ thống sẽ cần tải lại Chromium ở lần chạy tiếp theo.')) return;
+    if (!confirm(t.settings.del_confirm)) return;
     
-    addLog('Đang xóa cache nhân Chromium...');
+    addLog(language === 'vi' ? 'Đang xóa cache nhân Chromium...' : 'Clearing Chromium core cache...');
     try {
       const res = await bridge.clearChromiumCache();
       if (res.success) {
-        addLog('Đã xóa thành công nhân Chromium.');
+        addLog(language === 'vi' ? 'Đã xóa thành công nhân Chromium.' : 'Successfully uninstalled Chromium core.');
         fetchChromiumStatus();
       }
     } catch (err: any) {
       console.error(err);
-      addLog(`Lỗi xóa nhân Chromium: ${err.message}`);
+      addLog((language === 'vi' ? 'Lỗi xóa nhân Chromium: ' : 'Error deleting Chromium core: ') + err.message);
     }
   };
 
@@ -136,9 +146,12 @@ export function SystemSettingsManager({ bridge, addLog }: SystemSettingsManagerP
         theme: themeMode,
         defaultCacheDir,
       });
-      setSuccessMsg('Đã lưu cài đặt hệ thống thành công!');
-      addLog('Cập nhật cài đặt hệ thống thành công.');
+      setSuccessMsg(language === 'vi' ? 'Đã lưu cài đặt hệ thống thành công!' : 'System settings saved successfully!');
+      addLog(language === 'vi' ? 'Cập nhật cài đặt hệ thống thành công.' : 'System settings updated successfully.');
       
+      // Cập nhật ngôn ngữ toàn cục
+      onLanguageChange(language);
+
       // Tự động tắt thông báo thành công sau 3 giây
       setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err: any) {
@@ -155,21 +168,21 @@ export function SystemSettingsManager({ bridge, addLog }: SystemSettingsManagerP
       {/* Header */}
       <header style={styles.header}>
         <div>
-          <h2 style={styles.mainTitle}>Cài Đặt Hệ Thống</h2>
-          <p style={styles.mainSubtitle}>Quản lý môi trường hoạt động cục bộ, ngôn ngữ giao diện và thư mục lưu trữ dữ liệu</p>
+          <h2 style={styles.mainTitle}>{t.settings.title}</h2>
+          <p style={styles.mainSubtitle}>{t.settings.subtitle}</p>
         </div>
       </header>
 
       {loading ? (
         <div style={styles.loadingState}>
           <RefreshCw size={24} style={{ animation: 'spin 1s linear infinite', color: theme.colors.accent }} />
-          <div style={{ marginTop: '10px' }}>Đang tải cài đặt hệ thống...</div>
+          <div style={{ marginTop: '10px' }}>{t.common.loading}</div>
         </div>
       ) : (
         <form onSubmit={handleSaveSettings} style={styles.formCard}>
           <h3 style={styles.cardTitle}>
             <Settings size={18} style={{ marginRight: '8px', display: 'inline', verticalAlign: 'middle', color: theme.colors.accent }} />
-            Cấu hình tham số hệ thống
+            {t.settings.form_title}
           </h3>
 
           {successMsg && (
@@ -182,35 +195,35 @@ export function SystemSettingsManager({ bridge, addLog }: SystemSettingsManagerP
           <div style={styles.formBody}>
             {/* Chọn Ngôn Ngữ */}
             <div style={styles.inputGroup}>
-              <label style={styles.label}>Ngôn ngữ Giao diện</label>
+              <label style={styles.label}>{t.settings.lang_label}</label>
               <select 
                 value={language} 
                 onChange={(e) => setLanguage(e.target.value as any)} 
                 style={styles.select}
               >
-                <option value="vi">Tiếng Việt (Vietnamese)</option>
-                <option value="en">Tiếng Anh (English)</option>
+                <option value="vi">{t.settings.lang_vi}</option>
+                <option value="en">{t.settings.lang_en}</option>
               </select>
-              <span style={styles.helperText}>Ngôn ngữ hiển thị chính trên ứng dụng điều khiển.</span>
+              <span style={styles.helperText}>{t.settings.lang_helper}</span>
             </div>
 
             {/* Chọn Theme */}
             <div style={styles.inputGroup}>
-              <label style={styles.label}>Giao diện đồ họa (Theme)</label>
+              <label style={styles.label}>{t.settings.theme_label}</label>
               <select 
                 value={themeMode} 
                 onChange={(e) => setThemeMode(e.target.value as any)} 
                 style={styles.select}
               >
-                <option value="dark">Sleek Dark Mode (Chế độ tối)</option>
-                <option value="light">Premium Light Mode (Chế độ sáng)</option>
+                <option value="dark">{t.settings.theme_dark}</option>
+                <option value="light">{t.settings.theme_light}</option>
               </select>
-              <span style={styles.helperText}>Màu sắc giao diện Dashboard.</span>
+              <span style={styles.helperText}>{t.settings.theme_helper}</span>
             </div>
 
             {/* Thư mục Cache mặc định */}
             <div style={styles.inputGroup}>
-              <label style={styles.label}>Thư mục lưu trữ cache trình duyệt mặc định</label>
+              <label style={styles.label}>{t.settings.cache_label}</label>
               <div style={styles.directoryInputWrapper}>
                 <input 
                   type="text" 
@@ -220,37 +233,37 @@ export function SystemSettingsManager({ bridge, addLog }: SystemSettingsManagerP
                   required
                 />
               </div>
-              <span style={styles.helperText}>Nơi lưu trữ cookie, cache, localstorage của các Profile. Nên dùng đường dẫn cục bộ tốc độ cao (SSD).</span>
+              <span style={styles.helperText}>{t.settings.cache_helper}</span>
             </div>
 
             {/* Quản lý Nhân Trình Duyệt Chromium Stealth */}
             <div style={styles.chromiumCard}>
-              <h4 style={styles.runtimeTitle}>Quản Lý Nhân Trình Duyệt Chromium Stealth</h4>
+              <h4 style={styles.runtimeTitle}>{t.settings.chromium_title}</h4>
               
               {chromiumLoading ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: theme.colors.textSecondary, fontSize: '13px', padding: '10px 0' }}>
                   <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite', color: theme.colors.accent }} />
-                  <span>Đang tải thông tin nhân trình duyệt...</span>
+                  <span>{t.settings.chromium_loading}</span>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                   <div style={styles.infoGrid}>
                     <div style={styles.infoItem}>
-                      <span style={styles.infoLabel}>Trạng thái cài đặt:</span>
+                      <span style={styles.infoLabel}>{t.settings.col_status}</span>
                       <span style={chromiumStatus?.installed ? { color: theme.colors.success, fontWeight: 600 } : { color: theme.colors.danger, fontWeight: 600 }}>
-                        {chromiumStatus?.installed ? 'Đã Cài Đặt (Sẵn Sàng)' : 'Chưa Cài Đặt'}
+                        {chromiumStatus?.installed ? t.settings.status_ready : t.settings.status_missing}
                       </span>
                     </div>
                     <div style={styles.infoItem}>
-                      <span style={styles.infoLabel}>Phiên bản nhân:</span>
+                      <span style={styles.infoLabel}>{t.settings.col_version}</span>
                       <span style={styles.infoValue}>{chromiumStatus?.version || 'N/A'}</span>
                     </div>
                     <div style={styles.infoItem}>
-                      <span style={styles.infoLabel}>Platform Tag:</span>
+                      <span style={styles.infoLabel}>{t.settings.col_platform}</span>
                       <span style={styles.infoValue}>{chromiumStatus?.platform || 'N/A'}</span>
                     </div>
                     <div style={styles.infoItem}>
-                      <span style={styles.infoLabel}>Thư mục Cache nhân:</span>
+                      <span style={styles.infoLabel}>{t.settings.col_cache}</span>
                       <span 
                         style={{ ...styles.infoValue, fontSize: '11px', wordBreak: 'break-all', maxWidth: '240px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} 
                         title={chromiumStatus?.cacheDir}
@@ -265,10 +278,10 @@ export function SystemSettingsManager({ bridge, addLog }: SystemSettingsManagerP
                     <div style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: `1px solid ${theme.colors.border}`, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600 }}>
                         <span style={{ color: localDownload.status === 'Error' ? theme.colors.danger : theme.colors.accent }}>
-                          {localDownload.status === 'Downloading' && 'Đang tải file (~120MB)...'}
-                          {localDownload.status === 'Extracting' && 'Đang giải nén...'}
-                          {localDownload.status === 'Installed' && 'Cài đặt thành công!'}
-                          {localDownload.status === 'Error' && 'Lỗi cài đặt.'}
+                          {localDownload.status === 'Downloading' && t.settings.dl_status_dl}
+                          {localDownload.status === 'Extracting' && t.settings.dl_status_ext}
+                          {localDownload.status === 'Installed' && t.settings.dl_status_ok}
+                          {localDownload.status === 'Error' && t.settings.dl_status_err}
                         </span>
                         <span>{localDownload.progress}%</span>
                       </div>
@@ -291,7 +304,7 @@ export function SystemSettingsManager({ bridge, addLog }: SystemSettingsManagerP
                         onClick={handleDownloadChromium}
                         style={styles.btnActionPrimary}
                       >
-                        Tải Nhân Trình Duyệt Stealth
+                        {t.settings.btn_dl}
                       </button>
                     )}
                     {chromiumStatus?.installed && (
@@ -301,7 +314,7 @@ export function SystemSettingsManager({ bridge, addLog }: SystemSettingsManagerP
                           onClick={handleClearChromiumCache}
                           style={styles.btnActionDanger}
                         >
-                          Xóa Nhân Trình Duyệt
+                          {t.settings.btn_del}
                         </button>
                         <button
                           type="button"
@@ -309,7 +322,7 @@ export function SystemSettingsManager({ bridge, addLog }: SystemSettingsManagerP
                           style={styles.btnActionSecondary}
                           disabled={localDownload.status !== 'Idle'}
                         >
-                          Cập nhật / Tải lại
+                          {t.settings.btn_re_dl}
                         </button>
                       </>
                     )}
@@ -320,22 +333,22 @@ export function SystemSettingsManager({ bridge, addLog }: SystemSettingsManagerP
 
             {/* Thông tin Môi trường Runtime */}
             <div style={styles.runtimeInfoCard}>
-              <h4 style={styles.runtimeTitle}>Thông tin Môi trường Runtime</h4>
+              <h4 style={styles.runtimeTitle}>{t.settings.runtime_title}</h4>
               <div style={styles.infoGrid}>
                 <div style={styles.infoItem}>
-                  <span style={styles.infoLabel}>Node.js Portable Version:</span>
-                  <span style={styles.infoValue}>v22.11.0</span>
+                  <span style={styles.infoLabel}>{t.settings.node_ver}</span>
+                  <span style={styles.infoValue}>v24.0.0</span>
                 </div>
                 <div style={styles.infoItem}>
-                  <span style={styles.infoLabel}>Tauri Core Version:</span>
+                  <span style={styles.infoLabel}>{t.settings.tauri_ver}</span>
                   <span style={styles.infoValue}>v2.0.0 (Rust)</span>
                 </div>
                 <div style={styles.infoItem}>
-                  <span style={styles.infoLabel}>Stealth Browser Engine:</span>
+                  <span style={styles.infoLabel}>{t.settings.engine_ver}</span>
                   <span style={styles.infoValue}>CloakBrowser Chromium v0.3.30</span>
                 </div>
                 <div style={styles.infoItem}>
-                  <span style={styles.infoLabel}>Database Engine:</span>
+                  <span style={styles.infoLabel}>{t.settings.db_ver}</span>
                   <span style={styles.infoValue}>JSON Local database</span>
                 </div>
               </div>
@@ -349,7 +362,7 @@ export function SystemSettingsManager({ bridge, addLog }: SystemSettingsManagerP
               disabled={saving}
             >
               <Save size={14} style={{ marginRight: '6px' }} />
-              {saving ? 'Đang lưu cài đặt...' : 'Lưu Thay Đổi Cài Đặt'}
+              {saving ? t.common.saving : t.common.save}
             </button>
           </div>
         </form>

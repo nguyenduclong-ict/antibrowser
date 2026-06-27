@@ -8,6 +8,7 @@ import { theme } from "./styles/theme";
 import { ProxyManager } from "./components/ProxyManager";
 import { ExtensionManager } from "./components/ExtensionManager";
 import { SystemSettingsManager } from "./components/SystemSettingsManager";
+import { getTranslations } from "./lib/translations";
 import {
   Folder,
   Globe,
@@ -36,6 +37,9 @@ export default function App() {
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
+  const [language, setLanguage] = useState<'vi' | 'en'>('vi');
+  const t = getTranslations(language);
+
   const [chromiumDownload, setChromiumDownload] = useState<{
     status: 'Idle' | 'Downloading' | 'Extracting' | 'Installed' | 'Error';
     progress: number;
@@ -52,10 +56,21 @@ export default function App() {
     try {
       const list = await nodeBridge.getProfiles();
       setProfiles(list);
-      addLog("Đã tải thành công danh sách profiles từ database cục bộ.");
+      addLog(language === 'vi' ? "Đã tải thành công danh sách profiles từ database cục bộ." : "Successfully loaded profiles from local database.");
     } catch (err) {
       console.error("Lỗi tải danh sách profiles:", err);
-      addLog("Lỗi kết nối API lấy danh sách profiles.");
+      addLog(language === 'vi' ? "Lỗi kết nối API lấy danh sách profiles." : "Error fetching profiles from API.");
+    }
+  };
+
+  // Load cài đặt ngôn ngữ hệ thống
+  const loadSystemSettings = async () => {
+    if (!nodeBridge) return;
+    try {
+      const settings = await nodeBridge.getSettings();
+      setLanguage(settings.language);
+    } catch (err) {
+      console.error("Lỗi tải cài đặt hệ thống:", err);
     }
   };
 
@@ -66,7 +81,8 @@ export default function App() {
   useEffect(() => {
     if (!nodeBridge) return;
     loadProfiles();
-  }, [nodeBridge]);
+    loadSystemSettings();
+  }, [nodeBridge, language]);
 
   // 2. Lắng nghe sự kiện WebSocket real-time từ Node.js sidecar
   useEffect(() => {
@@ -138,16 +154,16 @@ export default function App() {
   // Khởi chạy Profile
   const handleLaunchProfile = async (id: string) => {
     if (!nodeBridge) return;
-    addLog(`Đang khởi chạy profile ID: ${id.substring(0, 8)}...`);
+    addLog(language === 'vi' ? `Đang khởi chạy profile ID: ${id.substring(0, 8)}...` : `Launching profile ID: ${id.substring(0, 8)}...`);
     try {
       const res = await nodeBridge.launchProfile(id);
       if (res.success) {
-        addLog(`Khởi chạy profile thành công! Cửa sổ trình duyệt đang mở.`);
+        addLog(t.profiles.launch_success);
       }
     } catch (err: any) {
       console.error(err);
       addLog(
-        `Lỗi khởi chạy trình duyệt: ${err.response?.data?.error || err.message}`,
+        (language === 'vi' ? "Lỗi khởi chạy trình duyệt: " : "Error launching browser: ") + (err.response?.data?.error || err.message),
       );
     }
   };
@@ -155,16 +171,16 @@ export default function App() {
   // Buộc đóng Profile đang chạy
   const handleStopProfile = async (id: string) => {
     if (!nodeBridge) return;
-    addLog(`Đang dừng profile ID: ${id.substring(0, 8)}...`);
+    addLog(language === 'vi' ? `Đang dừng profile ID: ${id.substring(0, 8)}...` : `Stopping profile ID: ${id.substring(0, 8)}...`);
     try {
       const res = await nodeBridge.stopProfile(id);
       if (res.success) {
-        addLog(`Đã đóng trình duyệt profile thành công.`);
+        addLog(t.profiles.stop_success);
       }
     } catch (err: any) {
       console.error(err);
       addLog(
-        `Lỗi đóng trình duyệt: ${err.response?.data?.error || err.message}`,
+        (language === 'vi' ? "Lỗi đóng trình duyệt: " : "Error stopping browser: ") + (err.response?.data?.error || err.message),
       );
     }
   };
@@ -174,7 +190,7 @@ export default function App() {
     if (!nodeBridge) return;
     if (
       !confirm(
-        `Bạn có chắc chắn muốn xóa profile "${name}"? Thao tác này sẽ xóa sạch dữ liệu cache & cookie của trình duyệt!`,
+        t.profiles.delete_confirm.replace('{name}', name)
       )
     )
       return;
@@ -183,11 +199,11 @@ export default function App() {
       const res = await nodeBridge.deleteProfile(id);
       if (res.success) {
         setProfiles((prev) => prev.filter((p) => p.id !== id));
-        addLog(`Đã xóa thành công profile "${name}".`);
+        addLog(t.profiles.delete_success.replace('{name}', name));
       }
     } catch (err: any) {
       console.error(err);
-      addLog(`Lỗi xóa profile: ${err.message}`);
+      addLog((language === 'vi' ? "Lỗi xóa profile: " : "Error deleting profile: ") + err.message);
     }
   };
 
@@ -296,7 +312,7 @@ export default function App() {
               onClick={() => setCurrentTab("profiles")}
             >
               <Folder size={16} style={{ marginRight: "8px" }} />
-              <span>Profiles Trình Duyệt</span>
+              <span>{t.sidebar.profiles}</span>
             </button>
             <button
               style={
@@ -307,7 +323,7 @@ export default function App() {
               onClick={() => setCurrentTab("proxies")}
             >
               <Globe size={16} style={{ marginRight: "8px" }} />
-              <span>Proxy Management</span>
+              <span>{t.sidebar.proxies}</span>
             </button>
             <button
               style={
@@ -318,7 +334,7 @@ export default function App() {
               onClick={() => setCurrentTab("extensions")}
             >
               <Layers size={16} style={{ marginRight: "8px" }} />
-              <span>Extensions (Chrome)</span>
+              <span>{t.sidebar.extensions}</span>
             </button>
             <button
               style={
@@ -329,13 +345,13 @@ export default function App() {
               onClick={() => setCurrentTab("settings")}
             >
               <Settings size={16} style={{ marginRight: "8px" }} />
-              <span>Cài Đặt Hệ Thống</span>
+              <span>{t.sidebar.settings}</span>
             </button>
           </nav>
 
           <div style={styles.sidebarFooter}>
-            <span>Core: CloakBrowser v0.3.30</span>
-            <span>Tauri Shell v2.0.0</span>
+            <span>{t.sidebar.core_version}</span>
+            <span>{t.sidebar.shell_version}</span>
           </div>
         </aside>
 
@@ -346,7 +362,7 @@ export default function App() {
               {/* Header */}
               <header style={styles.header}>
                 <div>
-                  <h2 style={styles.mainTitle}>Quản Lý Browser Profiles</h2>
+                  <h2 style={styles.mainTitle}>{t.profiles.title}</h2>
                 </div>
                 <div style={styles.headerActions}>
                   <button
@@ -363,14 +379,14 @@ export default function App() {
                           : "none",
                       }}
                     />
-                    {isRestarting ? "Restarting..." : "Restart Sidecar"}
+                    {isRestarting ? t.profiles.restarting : t.profiles.restart_sidecar}
                   </button>
                   <button
                     style={styles.btnCreate}
                     onClick={handleOpenCreateModal}
                   >
                     <Plus size={14} style={{ marginRight: "6px" }} />
-                    Tạo Profile Mới
+                    {t.profiles.create_profile}
                   </button>
                 </div>
               </header>
@@ -378,12 +394,12 @@ export default function App() {
               {/* Metrics Statistics */}
               <section style={styles.metricsGrid}>
                 <div style={styles.metricCard}>
-                  <span style={styles.metricLabel}>Tổng số Profile</span>
+                  <span style={styles.metricLabel}>{t.profiles.total}</span>
                   <span style={styles.metricValue}>{totalProfiles}</span>
                 </div>
                 <div style={styles.metricCard}>
                   <span style={styles.metricLabel}>
-                    Đang hoạt động (Running)
+                    {t.profiles.active}
                   </span>
                   <span style={styles.metricValueActive}>
                     {activeProfiles}{" "}
@@ -398,7 +414,7 @@ export default function App() {
                   </span>
                 </div>
                 <div style={styles.metricCard}>
-                  <span style={styles.metricLabel}>Đang tắt (Stopped)</span>
+                  <span style={styles.metricLabel}>{t.profiles.inactive}</span>
                   <span style={styles.metricValueInactive}>
                     {inactiveProfiles}{" "}
                     <Square
@@ -417,7 +433,7 @@ export default function App() {
               {/* Profiles Table Card */}
               <section style={styles.tableCard}>
                 <div style={styles.tableHeader}>
-                  <h3 style={styles.tableTitle}>Danh sách Profile Cấu hình</h3>
+                  <h3 style={styles.tableTitle}>{t.profiles.table_title}</h3>
                 </div>
 
                 <div style={styles.tableContainer}>
@@ -432,16 +448,16 @@ export default function App() {
                               minWidth: "220px",
                             }}
                           >
-                            Tên Profile
+                            {t.profiles.col_name}
                           </th>
-                          <th style={styles.th}>Proxy</th>
-                          <th style={styles.th}>Fingerprint</th>
-                          <th style={styles.th}>Trạng Thái</th>
+                          <th style={styles.th}>{t.profiles.col_proxy}</th>
+                          <th style={styles.th}>{t.profiles.col_fingerprint}</th>
+                          <th style={styles.th}>{t.profiles.col_status}</th>
                           <th
                             className="sticky-action-header"
                             style={{ ...styles.th, textAlign: "right" }}
                           >
-                            Thao Tác
+                            {t.common.actions}
                           </th>
                         </tr>
                       </thead>
@@ -489,7 +505,7 @@ export default function App() {
                                   </div>
                                 ) : (
                                   <span style={styles.proxyDirect}>
-                                    Mạng Trực Tiếp
+                                    {t.profiles.direct_network}
                                   </span>
                                 )}
                               </td>
@@ -500,7 +516,7 @@ export default function App() {
                                     Seed: <strong>{p.seed}</strong>
                                   </div>
                                   <div style={styles.specsSubText}>
-                                    CPU: {p.cpuCores} Cores | RAM:{" "}
+                                    CPU: {p.cpuCores} {t.profiles.specs_cores} | RAM:{" "}
                                     {p.deviceMemory} GB | {p.viewportWidth}x
                                     {p.viewportHeight}
                                   </div>
@@ -518,7 +534,7 @@ export default function App() {
                                         verticalAlign: "middle",
                                       }}
                                     />
-                                    Running
+                                    {language === 'vi' ? 'Running' : 'Running'}
                                   </span>
                                 )}
                                 {isStarting && (
@@ -532,7 +548,7 @@ export default function App() {
                                         animation: "spin 1s linear infinite",
                                       }}
                                     />
-                                    Starting...
+                                    {language === 'vi' ? 'Starting...' : 'Starting...'}
                                   </span>
                                 )}
                                 {(!p.status || p.status === "Stopped") && (
@@ -545,7 +561,7 @@ export default function App() {
                                         verticalAlign: "middle",
                                       }}
                                     />
-                                    Stopped
+                                    {language === 'vi' ? 'Stopped' : 'Stopped'}
                                   </span>
                                 )}
                               </td>
@@ -568,7 +584,7 @@ export default function App() {
                                           verticalAlign: "middle",
                                         }}
                                       />{" "}
-                                      Dừng
+                                      {t.profiles.btn_stop}
                                     </button>
                                   ) : (
                                     <button
@@ -593,7 +609,7 @@ export default function App() {
                                           fill: "#ffffff",
                                         }}
                                       />{" "}
-                                      Mở
+                                      {t.profiles.btn_launch}
                                     </button>
                                   )}
 
@@ -618,7 +634,7 @@ export default function App() {
                                         verticalAlign: "middle",
                                       }}
                                     />{" "}
-                                    Sửa
+                                    {t.common.edit}
                                   </button>
                                   <button
                                     style={
@@ -643,7 +659,7 @@ export default function App() {
                                         verticalAlign: "middle",
                                       }}
                                     />{" "}
-                                    Xóa
+                                    {t.common.delete}
                                   </button>
                                 </div>
                               </td>
@@ -662,7 +678,7 @@ export default function App() {
                         }}
                       />
                       <div style={{ marginBottom: "15px" }}>
-                        Chưa có Profile trình duyệt nào được tạo.
+                        {t.profiles.empty_title}
                       </div>
                       <button
                         style={styles.btnCreateEmpty}
@@ -676,7 +692,7 @@ export default function App() {
                             verticalAlign: "middle",
                           }}
                         />{" "}
-                        Tạo Profile Đầu Tiên
+                        {t.profiles.btn_create_first}
                       </button>
                     </div>
                   )}
@@ -694,7 +710,12 @@ export default function App() {
           )}
 
           {currentTab === "settings" && (
-            <SystemSettingsManager bridge={nodeBridge} addLog={addLog} />
+            <SystemSettingsManager 
+              bridge={nodeBridge} 
+              addLog={addLog} 
+              language={language}
+              onLanguageChange={setLanguage}
+            />
           )}
         </main>
       </div>
@@ -722,15 +743,15 @@ export default function App() {
                 } 
               />
               <h3 style={styles.hudTitle}>
-                {chromiumDownload.status === 'Downloading' && 'Tải Nhân Trình Duyệt'}
-                {chromiumDownload.status === 'Extracting' && 'Giải Nén Nhân Trình Duyệt'}
-                {chromiumDownload.status === 'Installed' && 'Đã Sẵn Sàng!'}
-                {chromiumDownload.status === 'Error' && 'Lỗi Cài Đặt'}
+                {chromiumDownload.status === 'Downloading' && t.hud.downloading}
+                {chromiumDownload.status === 'Extracting' && t.hud.extracting}
+                {chromiumDownload.status === 'Installed' && t.hud.installed}
+                {chromiumDownload.status === 'Error' && t.hud.error}
               </h3>
             </div>
             
             <p style={styles.hudMessage}>
-              {chromiumDownload.message || 'Đang chuẩn bị nhân Chromium Stealth cho lần đầu sử dụng. Vui lòng không tắt ứng dụng.'}
+              {chromiumDownload.message || t.hud.init_msg}
             </p>
 
             {(chromiumDownload.status === 'Downloading' || chromiumDownload.status === 'Extracting') && (
@@ -753,7 +774,7 @@ export default function App() {
                 style={styles.hudCloseBtn}
                 onClick={() => setChromiumDownload({ status: 'Idle', progress: 0 })}
               >
-                Đóng thông báo
+                {t.hud.close_btn}
               </button>
             )}
           </div>

@@ -6,7 +6,7 @@ use reqwest::Client;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
-const NODE_VERSION: &str = "22.11.0";
+const NODE_VERSION: &str = "24.0.0";
 
 #[derive(Debug, Clone, Serialize)]
 #[allow(dead_code)]
